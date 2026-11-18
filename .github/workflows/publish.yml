@@ -1,0 +1,47 @@
+name: Publish
+
+# Builds the sdist and wheel when a GitHub release is published and uploads
+# them to PyPI by trusted publishing (OIDC; no API token). PyPI must list this
+# repository, this workflow file and the `pypi` environment as a trusted
+# publisher.
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    # Only the public repository is registered with PyPI.
+    if: github.repository == 'bltlab/torch-linear-crf'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Check the tag matches the package version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/torch_linear_crf/__init__.py)
+          if [ "$TAG" != "v$version" ]; then
+            echo "release tag $TAG does not match __version__ $version" >&2
+            exit 1
+          fi
+      - run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/torch-linear-crf/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

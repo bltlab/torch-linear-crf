@@ -1,0 +1,34 @@
+name: Compatibility
+
+# The test suite, reference checks included, on every torch minor release in
+# ci/torch-versions.json (CPU wheels). Same sessions as `uvx nox -s compat`.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      torch: ${{ steps.list.outputs.torch }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: echo "torch=$(jq -c '[.[].torch]' ci/torch-versions.json)" >> "$GITHUB_OUTPUT"
+
+  compat:
+    needs: versions
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        torch: ${{ fromJSON(needs.versions.outputs.torch) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uvx nox -s "compat(${{ matrix.torch }})"

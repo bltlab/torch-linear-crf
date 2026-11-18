@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The declared floor and the version developed against.
+        python-version: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --python ${{ matrix.python-version }}
+      - run: uv run pytest -q
+
+  lint:
+    # ruff, typos, actionlint and pyright, as `uvx nox -s lint` runs them.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uvx nox -s lint
+
+  lowest:
+    # The lowest versions pyproject.toml allows (torch 2.4, and seqscore 0.8.0 for the tests),
+    # on the declared Python floor.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --python 3.10 --resolution lowest-direct
+      # torch 2.4's inductor imports setuptools, which a 3.10 venv lacks.
+      - run: uv pip install setuptools
+      - run: uv run --no-sync pytest -q
+
+  crosscheck:
+    # Agreement with pytorch-crf 0.7.2, torch-struct 0.5 and AllenNLP's CRF.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uvx nox -s crosscheck

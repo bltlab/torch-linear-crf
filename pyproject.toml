@@ -1,0 +1,79 @@
+[project]
+name = "torch-linear-crf"
+dynamic = ["version"]
+description = "A linear-chain CRF layer for PyTorch, with optional transition constraints"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "Constantine Lignos" }]
+keywords = ["pytorch", "crf", "conditional-random-field", "sequence-labeling", "ner"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    # 2.4 is where torch.amp.is_autocast_available landed, which crf.py's
+    # autocast guard calls; CI runs the suite on it. 2.6.0, the only 2.6
+    # release, miscompiles log_likelihood under torch.compile (wrong values,
+    # and an inductor crash in the backward); 2.5.1 and 2.7.0 do not.
+    "torch>=2.4,!=2.6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/bltlab/torch-linear-crf"
+Issues = "https://github.com/bltlab/torch-linear-crf/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.8",
+    # tests/test_constraints.py checks the encoding rules against seqscore.
+    "seqscore>=0.8.0",
+]
+compare = [
+    "pytorch-crf==0.7.2",
+]
+
+[build-system]
+# 1.27 is the first hatchling to write PEP 639's License-Expression.
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/torch_linear_crf/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/torch_linear_crf"]
+
+[tool.hatch.build.targets.sdist]
+# Hatch adds pyproject.toml, README.md and LICENSE on its own. tests/ needs
+# examples/, which tests/test_examples.py runs.
+only-include = ["src", "tests", "examples"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["cuda: needs a CUDA device; opt-in with TLC_TEST_CUDA=1 and CUDA_VISIBLE_DEVICES"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.10"
+# torch's type stubs do not re-export torch.jit.is_scripting or
+# torch._assert_async, though both are public at runtime.
+reportPrivateImportUsage = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# Pinned explicitly so a ruff upgrade cannot silently change what CI enforces.
+select = ["B", "C4", "E", "F", "I", "PERF", "RUF", "UP"]
